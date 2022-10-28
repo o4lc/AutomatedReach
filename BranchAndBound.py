@@ -4,52 +4,46 @@ from BranchAndBoundNode import BB_node
 from Bounding.LipschitzBound import LipschitzBounding
 from Bounding.PgdUpperBound import PgdUpperBound
 from Utilities.Timer import Timers
+from Bounding.DeepPolyBounding import DeepPolyBounding
 
 
 class BranchAndBound:
-    def __init__(self, coordUp=None, coordLow=None, verbose=False, verboseEssential=False, pgdStepSize=1e-3,
-                 inputDimension=2, eps=0.1, network=None, queryCoefficient=None, currDim = 0,
-                 pgdIterNum=5, pgdNumberOfInitializations=2, device=torch.device("cuda", 0),
-                 maximumBatchSize=256,  nodeBranchingFactor=2, branchNodeNum = 1,
-                 scoreFunction='length',
-                 virtualBranching=False, numberOfVirtualBranches=4,
-                 maxSearchDepthLipschitzBound=10,
-                 normToUseLipschitz=2, useTwoNormDilation=False, useSdpForLipschitzCalculation=False,
-                 lipschitzSdpSolverVerbose=False, initialGD=False, previousLipschitzCalculations=[],
-                 originalNetwork=None,
-                 horizonForLipschitz=1,
+    def __init__(self, coordUp, coordLow, config,
+                 inputDimension=2, network=None, queryCoefficient=None, currDim = 0,
+                 device=torch.device("cuda", 0),
+                 maximumBatchSize=1024,
                  initialBub=None,
+                 lowerBoundExtraInfo=None
                  ):
 
-        self.spaceNodes = [BB_node(np.infty, -np.infty, coordUp, coordLow, scoreFunction=scoreFunction)]
+        self.spaceNodes = [BB_node(np.infty, -np.infty, coordUp, coordLow, scoreFunction=config['scoreFunction'])]
         self.bestUpperBound = initialBub
         self.bestLowerBound = None
         self.initCoordUp = coordUp
         self.initCoordLow = coordLow
-        self.verbose = verbose
-        self.verboseEssential = verboseEssential
-        self.pgdIterNum = pgdIterNum
-        self.pgdNumberOfInitializations = pgdNumberOfInitializations
+        self.verbose = config['verbose']
+        self.verboseEssential = config['verboseEssential']
+        self.pgdIterNum = config['pgdIterNum']
+        self.pgdNumberOfInitializations = config['pgdNumberOfInitializations']
         self.inputDimension = inputDimension
-        self.eps = eps
+        self.eps = config['eps']
         self.network = network
         self.currDim = currDim
         self.queryCoefficient = queryCoefficient
-        self.lowerBoundClass = LipschitzBounding(network, device, virtualBranching, maxSearchDepthLipschitzBound,
-                                                 normToUseLipschitz, useTwoNormDilation, useSdpForLipschitzCalculation,
-                                                 numberOfVirtualBranches, lipschitzSdpSolverVerbose,
-                                                 previousLipschitzCalculations,
-                                                 originalNetwork=originalNetwork,
-                                                 horizon=horizonForLipschitz
-                                                 )
-        self.upperBoundClass = PgdUpperBound(network, pgdNumberOfInitializations, pgdIterNum, pgdStepSize,
+        self.lowerBoundMethod = config['lowerBoundMethod']
+        if config['lowerBoundMethod'] == "lipschitz":
+            self.lowerBoundClass = LipschitzBounding(network, config, device=device, extraInfo=lowerBoundExtraInfo)
+        elif config['lowerBoundMethod'] == "deepPoly":
+            self.lowerBoundClass = DeepPolyBounding(network, device)
+        self.upperBoundClass = PgdUpperBound(network, config['pgdNumberOfInitializations'],
+                                             config['pgdIterNum'], config['pgdStepSize'],
                                              inputDimension, device, maximumBatchSize)
-        self.nodeBranchingFactor = nodeBranchingFactor
-        self.scoreFunction = scoreFunction
-        self.branchNodeNum = branchNodeNum
+        self.nodeBranchingFactor = config['nodeBranchingFactor']
+        self.scoreFunction = config['scoreFunction']
+        self.branchNodeNum = config['branchNodeNum']
         self.device = device
-        self.maximumBatchSize = maximumBatchSize
-        self.initialGD = initialGD
+        self.maximumBatchSize = 1024
+        self.initialGD = config['initialGD']
         self.timers = Timers(["lowerBound",
                               "lowerBound:lipschitzForwardPass", "lowerBound:lipschitzCalc",
                               "lowerBound:lipschitzSearch",
@@ -207,8 +201,9 @@ class BranchAndBound:
         self.timers.pauseAll()
         if self.verboseEssential:
             self.timers.print()
-            print(self.lowerBoundClass.calculatedLipschitzConstants)
-            print("number of calculated lipschitz constants ", len(self.lowerBoundClass.calculatedLipschitzConstants))
+            if self.lowerBoundMethod == "lipschitz":
+                print(self.lowerBoundClass.calculatedLipschitzConstants)
+                print("number of calculated lipschitz constants ", len(self.lowerBoundClass.calculatedLipschitzConstants))
 
         return self.bestLowerBound, self.bestUpperBound, self.spaceNodes
 

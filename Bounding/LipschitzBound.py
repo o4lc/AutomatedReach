@@ -12,35 +12,31 @@ from scipy.linalg import block_diag
 class LipschitzBounding:
     def __init__(self,
                  network: nn.Module,
+                 config,
                  device=torch.device("cuda", 0),
-                 virtualBranching=False,
-                 maxSearchDepth=10,
-                 normToUse=2,
-                 useTwoNormDilation=False,
-                 useSdpForLipschitzCalculation=False,
-                 numberOfVirtualBranches=4,
-                 sdpSolverVerbose=False,
-                 calculatedLipschitzConstants=[],
-                 originalNetwork=None,
-                 horizon=1):
+                 extraInfo=None):
         self.network = network
         self.device = device
-        if originalNetwork:
-            self.weights = self.extractWeightsFromNetwork(originalNetwork)
-        else:
-            self.weights = self.extractWeightsFromNetwork(self.network)
-        self.calculatedLipschitzConstants = calculatedLipschitzConstants
-        self.maxSearchDepth = maxSearchDepth
-        self.performVirtualBranching = virtualBranching
+        if extraInfo:
+            self.calculatedLipschitzConstants = extraInfo['calculatedLipschitzConstants']
+            if extraInfo["originalNetwork"]:
+                self.weights = self.extractWeightsFromNetwork(extraInfo["originalNetwork"])
+            else:
+                self.weights = self.extractWeightsFromNetwork(self.network)
+            if "horizonForLipschitz" in extraInfo:
+                self.horizon = extraInfo['horizon']
+            else:
+                self.horizon = 1
+        self.maxSearchDepth = config['maxSearchDepthLipschitzBound']
+        self.performVirtualBranching = config['virtualBranching']
         self.extractWeightsForMilp()
-        self.normToUse = normToUse
-        self.useTwoNormDilation = useTwoNormDilation
-        self.useSdpForLipschitzCalculation = useSdpForLipschitzCalculation
-        self.numberOfVirtualBranches = numberOfVirtualBranches
-        if normToUse == 2:
+        self.normToUse = config['normToUseLipschitz']
+        self.useTwoNormDilation = config['useTwoNormDilation']
+        self.useSdpForLipschitzCalculation = config['useSdpForLipschitzCalculation']
+        self.numberOfVirtualBranches = config['numberOfVirtualBranches']
+        if self.normToUse == 2:
             assert (not(self.useSdpForLipschitzCalculation and self.useTwoNormDilation))
-        self.sdpSolverVerbose = sdpSolverVerbose
-        self.horizon = horizon
+        self.sdpSolverVerbose = config['lipschitzSdpSolverVerbose']
 
     def lowerBound(self,
                    queryCoefficient: torch.Tensor,

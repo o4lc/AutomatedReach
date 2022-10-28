@@ -10,6 +10,7 @@ def main():
     verboseMultiHorizon = 1
     verboseEssential = 0
     scoreFunction = 'worstLowerBound'
+    lowerBoundMethod = "lipschitz"
     virtualBranching = False
     numberOfVirtualBranches = 4
     maxSearchDepthLipschitzBound = 10
@@ -17,6 +18,11 @@ def main():
     useTwoNormDilation = False
     useSdpForLipschitzCalculation = True
     lipschitzSdpSolverVerbose = False
+    nodeBranchingFactor = 2
+    branchNodeNum = 512
+    pgdIterNum = 0
+    pgdNumberOfInitializations = 1
+    pgdStepSize = 0.5
     finalHorizon = 1
     initialGD = False
     performMultiStepSingleHorizon = False
@@ -78,6 +84,7 @@ def main():
         "verboseMultiHorizon": verboseMultiHorizon,
         "verboseEssential": verboseEssential,
         "scoreFunction": scoreFunction,
+        "lowerBoundMethod": lowerBoundMethod,
         "virtualBranching": virtualBranching,
         "numberOfVirtualBranches": numberOfVirtualBranches,
         "maxSearchDepthLipschitzBound": maxSearchDepthLipschitzBound,
@@ -85,6 +92,11 @@ def main():
         "useTwoNormDilation": useTwoNormDilation,
         "useSdpForLipschitzCalculation": useSdpForLipschitzCalculation,
         "lipschitzSdpSolverVerbose": lipschitzSdpSolverVerbose,
+        "nodeBranchingFactor": nodeBranchingFactor,
+        "branchNodeNum": branchNodeNum,
+        "pgdIterNum": pgdIterNum,
+        "pgdNumberOfInitializations": pgdNumberOfInitializations,
+        "pgdStepSize": pgdStepSize,
         "finalHorizon": finalHorizon,
         "initialGD": initialGD,
         "performMultiStepSingleHorizon": performMultiStepSingleHorizon,

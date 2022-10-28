@@ -95,7 +95,7 @@ class PgdUpperBound:
             x.requires_grad = True
             for j in range(self.pgdNumberOfInitializations):
                 with torch.autograd.profiler.profile() as prof:
-                    ll = queryCoefficient @ self.network.forward(x[j])
+                    ll = queryCoefficient @ self.network(x[j])
                     ll.backward()
                     # l.append(ll.data)
         

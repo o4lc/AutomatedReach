@@ -34,6 +34,9 @@ class NeuralNetwork(nn.Module):
     def setRepetition(self, repetition):
         self.repetition = repetition
 
+    def setRotation(self, rotation):
+        self.rotation = rotation
+
     def forward(self, x):
         x = self.rotation(x)
         for i in range(self.repetition):

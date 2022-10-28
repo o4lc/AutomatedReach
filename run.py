@@ -1,16 +1,15 @@
-from tabnanny import verbose
-import torch
-
 from packages import *
 
 from BranchAndBound import BranchAndBound
-from NeuralNetwork import NeuralNetwork
-import pandas as pd
+from NetworkModels.NeuralNetwork import NeuralNetwork
 from sklearn.decomposition import PCA
 import copy
 import json
+from NetworkModels.NeuralNetworkFullReachability import NeuralNetworkReachability
 
-torch.set_printoptions(precision=8)
+torch.set_printoptions(precision=20)
+defaultDtype = torch.float64
+torch.set_default_dtype(defaultDtype)
 
 
 def calculateDirectionsOfOptimization(onlyPcaDirections, imageData):
@@ -24,7 +23,7 @@ def calculateDirectionsOfOptimization(onlyPcaDirections, imageData):
         data_comp = pca.components_
         data_sd = np.sqrt(pca.explained_variance_)
 
-        inputData = torch.from_numpy(data_comp @ (imageData.cpu().numpy() - data_mean).T).T.float()
+        inputData = torch.from_numpy(data_comp @ (imageData - data_mean).T).T.to(defaultDtype)
         # print(np.linalg.norm(data_comp, 2, 1))
 
         pcaDirections = []
@@ -46,7 +45,7 @@ def calculateDirectionsOfOptimization(onlyPcaDirections, imageData):
 
 def calculateDirectionsOfHigherDimProjections(currentPcaDirections, imageData):
     indexToStartReadingBoundsForPlotting = len(currentPcaDirections)
-    projectedImageData = imageData.clone()
+    projectedImageData = np.copy(imageData)
     projectedImageData[:, 2:] = 0
     pca2 = PCA()
     _ = pca2.fit_transform(projectedImageData)
@@ -57,50 +56,32 @@ def calculateDirectionsOfHigherDimProjections(currentPcaDirections, imageData):
     return indexToStartReadingBoundsForPlotting
 
 
-def solveSingleStepReachability(pcaDirections, imageData, config, iteration, device, network,
+def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections, imageData, config, iteration, device, network,
                                 plottingConstants, calculatedLowerBoundsforpcaDirections,
-                                originalNetwork, horizonForLipschitz, lowerCoordinate, upperCoordinate):
-    eps = config['eps']
-    verbose = config['verbose']
-    verboseEssential = config['verboseEssential']
-    scoreFunction = config['scoreFunction']
-    virtualBranching = config['virtualBranching']
-    numberOfVirtualBranches = config['numberOfVirtualBranches']
-    maxSearchDepthLipschitzBound = config['maxSearchDepthLipschitzBound']
-    normToUseLipschitz = config['normToUseLipschitz']
-    useTwoNormDilation = config['useTwoNormDilation']
-    useSdpForLipschitzCalculation = config['useSdpForLipschitzCalculation']
-    lipschitzSdpSolverVerbose = config['lipschitzSdpSolverVerbose']
-    initialGD = config['initialGD']
+                                originalNetwork=None, horizonForLipschitz=1, looseLowerBound=False):
     dim = network.Linear[0].weight.shape[1]
-
+    lowerBoundExtraInfo = {}
     for i in range(len(pcaDirections)):
-        previousLipschitzCalculations = []
-        if i % 2 == 1 and torch.allclose(pcaDirections[i], -pcaDirections[i - 1]):
-            previousLipschitzCalculations = BB.lowerBoundClass.calculatedLipschitzConstants
-        c = pcaDirections[i]
+        if config['lowerBoundMethod'] == "lipschitz":
+            previousLipschitzCalculations = []
+            if i % 2 == 1 and torch.allclose(pcaDirections[i], -pcaDirections[i - 1]):
+                previousLipschitzCalculations = BB.lowerBoundClass.calculatedLipschitzConstants
+            lowerBoundExtraInfo = {"calculatedLipschitzConstants": previousLipschitzCalculations,
+                                   "horizon": horizonForLipschitz,
+                                   "originalNetwork": originalNetwork}
+        c = pcaDirections[i].to(device)
         if True:
             print('** Solving Horizon: ', iteration, 'dimension: ', i)
         initialBub = torch.min(imageData @ c)
+        print("initialBuB", initialBub)
         # initialBub = None
-        BB = BranchAndBound(upperCoordinate, lowerCoordinate, verbose=verbose, verboseEssential=verboseEssential,
-                            inputDimension=dim,
-                            eps=eps, network=network, queryCoefficient=c, currDim=i, device=device,
-                            nodeBranchingFactor=2, branchNodeNum=512,
-                            scoreFunction=scoreFunction,
-                            pgdIterNum=0, pgdNumberOfInitializations=1, pgdStepSize=0.5,
-                            virtualBranching=virtualBranching,
-                            numberOfVirtualBranches=numberOfVirtualBranches,
-                            maxSearchDepthLipschitzBound=maxSearchDepthLipschitzBound,
-                            normToUseLipschitz=normToUseLipschitz, useTwoNormDilation=useTwoNormDilation,
-                            useSdpForLipschitzCalculation=useSdpForLipschitzCalculation,
-                            lipschitzSdpSolverVerbose=lipschitzSdpSolverVerbose,
-                            initialGD=initialGD,
-                            previousLipschitzCalculations=previousLipschitzCalculations,
-                            originalNetwork=originalNetwork,
-                            horizonForLipschitz=horizonForLipschitz,
-                            initialBub=initialBub
+        BB = BranchAndBound(upperCoordinate, lowerCoordinate, config,
+                            inputDimension=dim, network=network, queryCoefficient=c, currDim=i, device=device,
+                            initialBub=initialBub,
+                            lowerBoundExtraInfo=lowerBoundExtraInfo
                             )
+        if looseLowerBound:
+            BB.spaceOutThreshold = 0
         lowerBound, upperBound, space_left = BB.run()
         plottingConstants[i] = -lowerBound
         calculatedLowerBoundsforpcaDirections[i] = lowerBound
@@ -109,16 +90,18 @@ def solveSingleStepReachability(pcaDirections, imageData, config, iteration, dev
 
 
 def main():
-    configFileToLoad = "Config/quadRotor.json"
+    configFileToLoad = "Config/doubleIntegratorDeepPoly.json"
+    # configFileToLoad = "Config/quadRotor.json"
     with open(configFileToLoad, 'r') as file:
         config = json.load(file)
-
+    config['A'] = None
+    config['B'] = None
+    config['c'] = None
+    lowerBoundMethod = config['lowerBoundMethod']
     eps = config['eps']
     verboseMultiHorizon = config['verboseMultiHorizon']
-    normToUseLipschitz = config['normToUseLipschitz']
-    useSdpForLipschitzCalculation = config['useSdpForLipschitzCalculation']
+
     finalHorizon = config['finalHorizon']
-    performMultiStepSingleHorizon = config['performMultiStepSingleHorizon']
     plotProjectionsOfHigherDims = config['plotProjectionsOfHigherDims']
     onlyPcaDirections = config['onlyPcaDirections']
     pathToStateDictionary = config['pathToStateDictionary']
@@ -134,10 +117,10 @@ def main():
 
     if not verboseMultiHorizon:
         plotProjectionsOfHigherDims = False
-
-    if finalHorizon > 1 and performMultiStepSingleHorizon and\
-            (normToUseLipschitz != 2 or not useSdpForLipschitzCalculation):
-        raise ValueError
+    if lowerBoundMethod == "lipschitz":
+        if finalHorizon > 1 and config['performMultiStepSingleHorizon'] and\
+                (config['normToUseLipschitz'] != 2 or not config['useSdpForLipschitzCalculation']):
+            raise ValueError
 
     if torch.cuda.is_available():
         device = torch.device("cuda", 0)
@@ -166,54 +149,58 @@ def main():
 
     lowerCoordinate = lowerCoordinate.to(device)
     upperCoordinate = upperCoordinate.to(device)
-
-    network = NeuralNetwork(pathToStateDictionary, A, B, c)
+    if lowerBoundMethod == "lipschitz":
+        network = NeuralNetwork(pathToStateDictionary, A, B, c)
+    elif lowerBoundMethod == "deepPoly":
+        network = NeuralNetworkReachability(pathToStateDictionary, lowerCoordinate, A, B, c,
+                                            finalHorizon, config['performMultiStepSingleHorizon'])
+        if config['performMultiStepSingleHorizon']:
+            finalHorizon = 1
     horizonForLipschitz = 1
     originalNetwork = None
-    if performMultiStepSingleHorizon:
-        originalNetwork = copy.deepcopy(network)
-        horizonForLipschitz = finalHorizon
-        network.setRepetition(finalHorizon)
-        # repeatNetwork(network, finalHorizon)
-        finalHorizon = 1
+    if lowerBoundMethod == "lipschitz":
+        if config['performMultiStepSingleHorizon']:
+            originalNetwork = copy.deepcopy(network)
+            horizonForLipschitz = finalHorizon
+            network.setRepetition(finalHorizon)
+            # repeatNetwork(network, finalHorizon)
+            finalHorizon = 1
 
     dim = network.Linear[0].weight.shape[1]
-    outputDim = network.Linear[-1].weight.shape[0]
     network.to(device)
-
     if dim < 3:
         plotProjectionsOfHigherDims = False
 
     plottingData = {}
-
+    print(network)
     inputData = (upperCoordinate - lowerCoordinate) * torch.rand(1000, dim, device=device) \
                                                         + lowerCoordinate
     if verboseMultiHorizon:
         # fig = plt.figure()
         fig, ax = plt.subplots()
         if "robotarm" not in configFileToLoad.lower():
-            plt.scatter(inputData[:, 0], inputData[:, 1], marker='.', label='Initial', alpha=0.5)
+            plottingCoords = inputData.cpu().numpy()
+            plt.scatter(plottingCoords[:, 0], plottingCoords[:, 1], marker='.', label='Initial', alpha=0.5)
     plottingData[0] = {"exactSet": inputData}
 
     startTime = time.time()
 
     for iteration in range(finalHorizon):
-        inputDataVariable = Variable(inputData, requires_grad=False)
         with no_grad():
-            imageData = network.forward(inputDataVariable)
-        plottingData[iteration + 1] = {"exactSet": imageData}
-        pcaDirections, data_comp, data_mean, inputData = calculateDirectionsOfOptimization(onlyPcaDirections, imageData)
+            imageData = network(inputData)
+        imageDataCpu = imageData.detach().clone().cpu().numpy()
+        plottingData[iteration + 1] = {"exactSet": imageDataCpu}
+        pcaDirections, data_comp, data_mean, inputData = calculateDirectionsOfOptimization(onlyPcaDirections,
+                                                                                           imageDataCpu)
 
-        if verboseMultiHorizon:
-            # plt.figure()
-            plt.scatter(imageData[:, 0], imageData[:, 1], marker='.', label='Horizon ' + str(iteration + 1), alpha=0.5)
+        # if verboseMultiHorizon:
+        #     # plt.figure()
+        #     plt.scatter(imageDataCpu[:, 0], imageDataCpu[:, 1], marker='.', label='Horizon ' + str(iteration + 1), alpha=0.5)
 
-
-        numberOfInitialDirections = len(pcaDirections)
         indexToStartReadingBoundsForPlotting = 0
-        plottingDirections = pcaDirections
         if plotProjectionsOfHigherDims:
-            indexToStartReadingBoundsForPlotting = calculateDirectionsOfHigherDimProjections(pcaDirections, imageData)
+            indexToStartReadingBoundsForPlotting = calculateDirectionsOfHigherDimProjections(pcaDirections,
+                                                                                             imageDataCpu)
 
         plottingData[iteration + 1]["A"] = pcaDirections
         plottingConstants = np.zeros((len(pcaDirections), 1))
@@ -221,16 +208,11 @@ def main():
         pcaDirections = torch.Tensor(np.array(pcaDirections))
         calculatedLowerBoundsforpcaDirections = torch.Tensor(np.zeros(len(pcaDirections)))
 
-        solveSingleStepReachability(pcaDirections, imageData, config, iteration, device, network,
+        solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections, imageData, config, iteration, device, network,
                                     plottingConstants, calculatedLowerBoundsforpcaDirections,
-                                    originalNetwork, horizonForLipschitz, lowerCoordinate, upperCoordinate)
+                                    originalNetwork, horizonForLipschitz)
 
         if finalHorizon > 1:
-            rotation = nn.Linear(dim, dim)
-            rotation.weight = torch.nn.parameter.Parameter(torch.linalg.inv(torch.from_numpy(data_comp).float().to(device)))
-            rotation.bias = torch.nn.parameter.Parameter(torch.from_numpy(data_mean).float().to(device))
-            network.rotation = rotation
-
             centers = []
             for i, component in enumerate(data_comp):
                 u = -calculatedLowerBoundsforpcaDirections[2 * i]
@@ -241,6 +223,20 @@ def main():
                 upperCoordinate[i] = u - center
                 lowerCoordinate[i] = l - center
 
+            if lowerBoundMethod == "lipschitz" \
+                    or (lowerBoundMethod == "deepPoly" and not config['performMultiStepSingleHorizon']):
+                rotation = nn.Linear(dim, dim)
+                rotation.weight = torch.nn.parameter.Parameter(torch.linalg.inv(torch.from_numpy(data_comp).to(defaultDtype).to(device)))
+                rotation.bias = torch.nn.parameter.Parameter(torch.from_numpy(data_mean).to(defaultDtype).to(device))
+                if lowerBoundMethod == "lipschitz":
+                    network.setRotation(rotation)
+                elif lowerBoundMethod == "deepPoly":
+
+                    solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections, imageData, config,
+                                                iteration, device, network,
+                                                plottingConstants, calculatedLowerBoundsforpcaDirections,
+                                                originalNetwork, horizonForLipschitz, looseLowerBound=True)
+                    print("incomplete")
         if verboseMultiHorizon:
             AA = -np.array(pcaDirections[indexToStartReadingBoundsForPlotting:])
             AA = AA[:, :2]
