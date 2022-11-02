@@ -152,7 +152,7 @@ def main():
     if lowerBoundMethod == "lipschitz":
         network = NeuralNetwork(pathToStateDictionary, A, B, c)
     elif lowerBoundMethod == "deepPoly":
-        network = NeuralNetworkReachability(pathToStateDictionary, lowerCoordinate, A, B, c,
+        network = NeuralNetworkReachability(pathToStateDictionary, lowerCoordinate, upperCoordinate, A, B, c,
                                             finalHorizon, config['performMultiStepSingleHorizon'])
         if config['performMultiStepSingleHorizon']:
             finalHorizon = 1
