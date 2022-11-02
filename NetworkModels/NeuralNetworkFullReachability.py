@@ -1,4 +1,5 @@
 import torch.nn
+import copy
 
 from packages import *
 
@@ -63,6 +64,9 @@ class NeuralNetworkReachability(nn.Module):
             B = torch.eye(outputDimension)
             c = torch.zeros(outputDimension)
         c = c.squeeze() if len(c.shape) > 1 else c
+        A = A.to(cpuDevice)
+        B = B.to(cpuDevice)
+        c = c.to(cpuDevice)
         # layers.append(nn.ReLU())
         # layers.append(nn.Identity())
         layers.append(nn.Linear(layers[-1].bias.shape[0],
@@ -77,11 +81,23 @@ class NeuralNetworkReachability(nn.Module):
         #     except:
         #         continue
         self.layers = layers
+        originalLayers = copy.deepcopy(layers)
+        originalSize = len(originalLayers)
         if multiStepSingleHorizon:
-            originalLength = len(layers)
             for i in range(numberOfTimeSteps - 1):
-                for j in range(originalLength):
-                    layers.append(layers[j])
+                for j in range(originalSize):
+                    if type(originalLayers[j]) == nn.modules.linear.Linear:
+                        w0 = originalLayers[j].weight
+                        b0 = originalLayers[j].bias
+                        layers.append(nn.Linear(w0.shape[1], w0.shape[0]))
+                        layers[-1].weight = nn.Parameter(w0)
+                        layers[-1].bias = nn.Parameter(b0)
+                    elif type(originalLayers[j]) == nn.modules.activation.ReLU:
+                        layers.append(nn.ReLU())
+                    elif type(originalLayers[j]) == nn.modules.linear.Identity:
+                        layers.append(nn.Identity())
+                    else:
+                        raise ValueError
         self.Linear = nn.Sequential(
             *layers
         )

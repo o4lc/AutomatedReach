@@ -94,9 +94,9 @@ def main():
     # configFileToLoad = "Config/quadRotor.json"
     with open(configFileToLoad, 'r') as file:
         config = json.load(file)
-    config['A'] = None
-    config['B'] = None
-    config['c'] = None
+    # config['A'] = None
+    # config['B'] = None
+    # config['c'] = None
     lowerBoundMethod = config['lowerBoundMethod']
     eps = config['eps']
     verboseMultiHorizon = config['verboseMultiHorizon']
@@ -193,9 +193,9 @@ def main():
         pcaDirections, data_comp, data_mean, inputData = calculateDirectionsOfOptimization(onlyPcaDirections,
                                                                                            imageDataCpu)
 
-        # if verboseMultiHorizon:
-        #     # plt.figure()
-        #     plt.scatter(imageDataCpu[:, 0], imageDataCpu[:, 1], marker='.', label='Horizon ' + str(iteration + 1), alpha=0.5)
+        if verboseMultiHorizon:
+            # plt.figure()
+            plt.scatter(imageDataCpu[:, 0], imageDataCpu[:, 1], marker='.', label='Horizon ' + str(iteration + 1), alpha=0.5)
 
         indexToStartReadingBoundsForPlotting = 0
         if plotProjectionsOfHigherDims:
@@ -245,6 +245,7 @@ def main():
                 bb.append(-calculatedLowerBoundsforpcaDirections[i])
 
             bb = np.array(bb)
+            print(bb)
             pltp = polytope.Polytope(AA, bb)
             ax = pltp.plot(ax, alpha = 0.1, color='grey', edgecolor='black')
             ax.set_xlim([0, 5])

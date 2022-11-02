@@ -365,12 +365,13 @@ class MNBabOptimizer:
         #     (ubs_of_minimum - output_lbs.squeeze() > -(1e-8))
         # ), f"output_lb: {output_lbs.tolist()}; output_ub_min: {ubs_of_minimum.tolist()} u - l: {input_ub - input_lb}\n" \
         #          f" u: {input_ub}, l: {input_lb}"
+
         assert (
-            (ubs_of_minimum > output_lbs.squeeze())
+            (ubs_of_minimum - output_lbs.squeeze() > -(1e-8))
         ), f"output_lb: {output_lbs.tolist()}; output_ub_min: {ubs_of_minimum.tolist()} u - l: {input_ub - input_lb}\n" \
            f" u: {input_ub}, l: {input_lb}"
 
-        return output_lbs.flatten().tolist(), ubs_of_minimum
+        return (output_lbs.flatten()-(1e-5)).tolist(), ubs_of_minimum
 
     def _bound_minimum_optimizing_alpha(
         self,
