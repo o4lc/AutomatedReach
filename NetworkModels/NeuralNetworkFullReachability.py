@@ -5,61 +5,68 @@ from packages import *
 
 
 class NeuralNetworkReachability(nn.Module):
-    def __init__(self, path, lowerBound, upperBound, A=None, B=None, c=None, numberOfTimeSteps=1, multiStepSingleHorizon=True):
+    def __init__(self, path=None, lowerBound=None, upperBound=None,
+                 A=None, B=None, c=None,
+                 numberOfTimeSteps=1, multiStepSingleHorizon=True,
+                 layers=None):
         super().__init__()
-        cpuDevice = torch.device("cpu")
-        stateDictionary = torch.load(path, map_location=cpuDevice)
-        inputDimension = lowerBound.shape[0]
-        for key in reversed(stateDictionary):
-            outputDimension = stateDictionary[key].shape[0]
-            break
-        flag = False
-        if A is None:
-            flag = True
-            A = torch.zeros((outputDimension, inputDimension))
-            B = torch.eye(outputDimension)
-            c = torch.zeros(outputDimension)
-        c = c.squeeze() if len(c.shape) > 1 else c
-        A = A.to(cpuDevice)
-        B = B.to(cpuDevice)
-        c = c.to(cpuDevice)
-        # if A is None:
-        #     layers = []
-        #     for keyEntry in stateDictionary:
-        #         if "weight" in keyEntry:
-        #             layers.append(nn.Linear(stateDictionary[keyEntry].shape[1], stateDictionary[keyEntry].shape[0]))
-        #             layers.append(nn.ReLU())
-        #     layers.pop()
-        #     self.Linear = nn.Sequential(
-        #         *layers
-        #     )
-        #     self.load_state_dict(stateDictionary)
-        # else:
+        if layers:
+            self.layers = layers
+        else:
+            cpuDevice = torch.device("cpu")
+            stateDictionary = torch.load(path, map_location=cpuDevice)
+            inputDimension = lowerBound.shape[0]
+            for key in reversed(stateDictionary):
+                outputDimension = stateDictionary[key].shape[0]
+                break
+            flag = False
+            if A is None:
+                flag = True
+                A = torch.zeros((outputDimension, inputDimension))
+                B = torch.eye(outputDimension)
+                c = torch.zeros(outputDimension)
+            c = c.squeeze() if len(c.shape) > 1 else c
+            A = A.to(cpuDevice)
+            B = B.to(cpuDevice)
+            c = c.to(cpuDevice)
+            # if A is None:
+            #     layers = []
+            #     for keyEntry in stateDictionary:
+            #         if "weight" in keyEntry:
+            #             layers.append(nn.Linear(stateDictionary[keyEntry].shape[1], stateDictionary[keyEntry].shape[0]))
+            #             layers.append(nn.ReLU())
+            #     layers.pop()
+            #     self.Linear = nn.Sequential(
+            #         *layers
+            #     )
+            #     self.load_state_dict(stateDictionary)
+            # else:
 
-        self.layers = createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimension, flag)
+            self.layers, self.originalWeights = createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimension, flag)
 
-        for i in range(numberOfTimeSteps - 1):
-            lowerBound, upperBound = propagateBoundsInNetwork(lowerBound, upperBound, self.layers)
-            self.layers += createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimension, flag)
+            for i in range(numberOfTimeSteps - 1):
+                lowerBound, upperBound = propagateBoundsInNetwork(lowerBound, upperBound, self.layers)
+                layers, _ = createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimension, flag)
+                self.layers += layers
 
-        # self.layers = layers
-        # originalLayers = copy.deepcopy(layers)
-        # originalSize = len(originalLayers)
-        # if multiStepSingleHorizon:
-        #     for i in range(numberOfTimeSteps - 1):
-        #         for j in range(originalSize):
-        #             if type(originalLayers[j]) == nn.modules.linear.Linear:
-        #                 w0 = originalLayers[j].weight
-        #                 b0 = originalLayers[j].bias
-        #                 layers.append(nn.Linear(w0.shape[1], w0.shape[0]))
-        #                 layers[-1].weight = nn.Parameter(w0)
-        #                 layers[-1].bias = nn.Parameter(b0)
-        #             elif type(originalLayers[j]) == nn.modules.activation.ReLU:
-        #                 layers.append(nn.ReLU())
-        #             elif type(originalLayers[j]) == nn.modules.linear.Identity:
-        #                 layers.append(nn.Identity())
-        #             else:
-        #                 raise ValueError
+            # self.layers = layers
+            # originalLayers = copy.deepcopy(layers)
+            # originalSize = len(originalLayers)
+            # if multiStepSingleHorizon:
+            #     for i in range(numberOfTimeSteps - 1):
+            #         for j in range(originalSize):
+            #             if type(originalLayers[j]) == nn.modules.linear.Linear:
+            #                 w0 = originalLayers[j].weight
+            #                 b0 = originalLayers[j].bias
+            #                 layers.append(nn.Linear(w0.shape[1], w0.shape[0]))
+            #                 layers[-1].weight = nn.Parameter(w0)
+            #                 layers[-1].bias = nn.Parameter(b0)
+            #             elif type(originalLayers[j]) == nn.modules.activation.ReLU:
+            #                 layers.append(nn.ReLU())
+            #             elif type(originalLayers[j]) == nn.modules.linear.Identity:
+            #                 layers.append(nn.Identity())
+            #             else:
+            #                 raise ValueError
         self.Linear = nn.Sequential(
             *self.layers
         )
@@ -77,7 +84,7 @@ def createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimensi
                               fullReachabilityFlag=True):
     cpuDevice = torch.device("cpu")
     layers = [nn.Linear(inputDimension, 2 * inputDimension)]
-
+    originalWeights = []
     layers[0].weight = torch.nn.Parameter(torch.vstack([torch.eye(inputDimension), torch.eye(inputDimension)]))
     layers[0].bias = torch.nn.Parameter(torch.hstack([-lowerBound.to(cpuDevice), torch.zeros(inputDimension)]))
     # layers[0].bias = torch.nn.Parameter(torch.hstack([-lowerBound, -lowerBound]))
@@ -86,6 +93,7 @@ def createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimensi
     count = 1
     for keyEntry in stateDictionary:
         if "weight" in keyEntry:
+            originalWeights.append(stateDictionary[keyEntry])
             weightKeyEntry = keyEntry
             layers.append(nn.Linear(inputDimension + stateDictionary[keyEntry].shape[1],
                                     inputDimension + stateDictionary[keyEntry].shape[0]))
@@ -119,7 +127,7 @@ def createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimensi
     # layers[-1].bias = torch.nn.Parameter(c - (100 * A @ torch.ones((inputDimension, 1)) +
     #                                                        100 * B @ torch.ones((outputDimension, 1))).squeeze())
     layers[-1].bias = torch.nn.Parameter(c)
-    return layers
+    return layers, originalWeights
 
 
 def calculateBoundsAfterLinearTransformation(weight, bias, lowerBound, upperBound):

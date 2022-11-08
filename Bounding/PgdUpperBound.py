@@ -59,11 +59,11 @@ class PgdUpperBound:
         return upperBounds
 
     def upperBoundPerIndexWithPgd(self, index, nodes, queryCoefficient):
-        # x0 = (nodes[index].coordUpper - nodes[index].coordLower) \
-        #      * torch.rand(self.pgdNumberOfInitializations, self.inputDimension, device=self.device) \
-        #      + nodes[index].coordLower
+        x0 = (nodes[index].coordUpper - nodes[index].coordLower) \
+             * torch.rand(self.pgdNumberOfInitializations, self.inputDimension, device=self.device) \
+             + nodes[index].coordLower
         # print(x0.shape)
-        x0 = (nodes[index].coordUpper + nodes[index].coordLower).unsqueeze(0) / 2
+        # x0 = (nodes[index].coordUpper + nodes[index].coordLower).unsqueeze(0) / 2
         # print(x0.shape)
         x = Variable(x0, requires_grad=True)
 
