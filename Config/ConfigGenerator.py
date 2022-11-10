@@ -4,7 +4,7 @@ import numpy as np
 
 
 def main():
-    fileName = "robotArm"
+    fileName = "fourDim"
     eps = 0.01
     verbose = 0
     verboseMultiHorizon = 1
@@ -72,11 +72,17 @@ def main():
     # upperCoordinate = torch.Tensor([4.8, 4.9, 3.1, 0.96, 0.001, 0.001])
 
     # elif fileName == "RobotArmStateDict2-50-2.pth":
-    lowerCoordinate = torch.Tensor([np.pi / 3., np.pi / 3.])
-    upperCoordinate = torch.Tensor([2 * np.pi / 3., 2 * np.pi / 3.])
+    # lowerCoordinate = torch.Tensor([np.pi / 3., np.pi / 3.])
+    # upperCoordinate = torch.Tensor([2 * np.pi / 3., 2 * np.pi / 3.])
 
+    A = torch.Tensor([[0.7, -0.1, 0, 0], [0.2, -0.5, 0.1, 0], [0, 0.1, 0.1, 0], [0.5, 0, 0.5, 0.5]])
+    B = torch.Tensor([[0, 0.1], [0.1, 1.0], [0.1, 0], [0, 0]])
+    c = torch.Tensor([0., 0, 0, 0]).unsqueeze(1)
 
-    pathToStateDictionary = "Networks/" + "RobotArmStateDict2-50-2" + ".pth"
+    lowerCoordinate = torch.Tensor([-2, -2, -.7, -.2])
+    upperCoordinate = torch.Tensor([-1, -1, -.2, -.1])
+
+    pathToStateDictionary = "Networks/" + "fourDimV1.0" + ".pth"
 
     configDictionary = {
         "eps": eps,

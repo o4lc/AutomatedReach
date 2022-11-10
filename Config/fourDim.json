@@ -1,5 +1,5 @@
 {
-    "eps": 0.001,
+    "eps": 0.01,
     "verbose": 0,
     "verboseMultiHorizon": 1,
     "verboseEssential": 0,
@@ -12,12 +12,12 @@
     "useTwoNormDilation": false,
     "useSdpForLipschitzCalculation": true,
     "lipschitzSdpSolverVerbose": false,
-    "nodeBranchingFactor":2,
+    "nodeBranchingFactor": 2,
     "branchNodeNum": 512,
     "pgdIterNum": 0,
     "pgdNumberOfInitializations": 1,
     "pgdStepSize": 0.5,
-    "finalHorizon": 5,
+    "finalHorizon": 1,
     "initialGD": false,
     "performMultiStepSingleHorizon": false,
     "plotProjectionsOfHigherDims": true,
@@ -25,33 +25,65 @@
     "fullLoop": false,
     "A": [
         [
-            1.0,
-            1.0
+            0.699999988079071,
+            -0.10000000149011612,
+            0.0,
+            0.0
+        ],
+        [
+            0.20000000298023224,
+            -0.5,
+            0.10000000149011612,
+            0.0
         ],
         [
             0.0,
-            1.0
+            0.10000000149011612,
+            0.10000000149011612,
+            0.0
+        ],
+        [
+            0.5,
+            0.0,
+            0.5,
+            0.5
         ]
     ],
     "B": [
         [
-            0.5
+            0.0,
+            0.10000000149011612
         ],
         [
+            0.10000000149011612,
             1.0
+        ],
+        [
+            0.10000000149011612,
+            0.0
+        ],
+        [
+            0.0,
+            0.0
         ]
     ],
     "c": [
         0.0,
+        0.0,
+        0.0,
         0.0
     ],
     "lowerCoordinate": [
-        2.5,
-        -0.25
+        -2.0,
+        -2.0,
+        -0.699999988079071,
+        -0.20000000298023224
     ],
     "upperCoordinate": [
-        3.0,
-        0.25
+        -1.0,
+        -1.0,
+        -0.20000000298023224,
+        -0.10000000149011612
     ],
-    "pathToStateDictionary": "Networks/doubleIntegrator_reachlp.pth"
+    "pathToStateDictionary": "Networks/fourDimV1.0.pth"
 }

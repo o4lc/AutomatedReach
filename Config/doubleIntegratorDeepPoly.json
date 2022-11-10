@@ -4,7 +4,7 @@
     "verboseMultiHorizon": 1,
     "verboseEssential": 0,
     "scoreFunction": "worstLowerBound",
-    "lowerBoundMethod": "lipschitz",
+    "lowerBoundMethod": "deepPoly",
     "virtualBranching": false,
     "numberOfVirtualBranches": 4,
     "maxSearchDepthLipschitzBound": 10,
@@ -19,9 +19,9 @@
     "pgdStepSize": 0.5,
     "finalHorizon": 5,
     "initialGD": false,
-    "performMultiStepSingleHorizon": false,
-    "plotProjectionsOfHigherDims": true,
-    "onlyPcaDirections": true,
+    "performMultiStepSingleHorizon": true,
+    "plotProjectionsOfHigherDims": false,
+    "onlyPcaDirections": false,
     "fullLoop": false,
     "A": [
         [
