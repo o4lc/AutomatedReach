@@ -15,6 +15,7 @@ class LipschitzBounding:
                  config,
                  device=torch.device("cuda", 0),
                  extraInfo=None):
+        self.providesUpperBound = False
         self.network = network
         self.device = device
         if extraInfo:

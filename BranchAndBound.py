@@ -127,12 +127,16 @@ class BranchAndBound:
         return [len(self.spaceNodes) - j for j in range(1, numNodesAdded + 1)], deletedUpperBounds, deletedLowerBounds
 
     def bound(self, indices, parent_lb):
-        self.timers.start("lowerBound")
-        lowerBounds = torch.maximum(self.lowerBound(indices), parent_lb)
-        self.timers.pause("lowerBound")
-        self.timers.start("upperBound")
-        upperBounds = self.upperBound(indices)
-        self.timers.pause("upperBound")
+        if self.lowerBoundClass.providesUpperBound:
+            lowerBounds, upperBounds = self.lowerBound(indices)
+            lowerBounds = torch.maximum(lowerBounds, parent_lb)
+        else:
+            self.timers.start("lowerBound")
+            lowerBounds = torch.maximum(self.lowerBound(indices), parent_lb)
+            self.timers.pause("lowerBound")
+            self.timers.start("upperBound")
+            upperBounds = self.upperBound(indices)
+            self.timers.pause("upperBound")
         for i, index in enumerate(indices):
             self.spaceNodes[index].upper = upperBounds[i]
             self.spaceNodes[index].lower = lowerBounds[i]

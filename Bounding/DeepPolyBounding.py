@@ -9,6 +9,7 @@ from copy import deepcopy
 
 class DeepPolyBounding:
     def __init__(self, network: NeuralNetwork, device, extraInfo=None):
+        self.providesUpperBound = True
         originalNetwork = deepcopy(network)
         originalNetwork.to(device)
         originalNetwork.eval()
@@ -16,11 +17,9 @@ class DeepPolyBounding:
                                                                originalNetwork.Linear[0].weight.shape[1])
         freeze_network(originalNetwork)
         self.network = originalNetwork
-        from src.utilities.argument_parsing import get_args, get_config_from_json
-        config = get_config_from_json("configs/2dRandomNetwork1.json")
 
         # verifier = MNBaBVerifier(
-        #     network,
+        #     originalNetwork,
         #     device,
         #     False,
         #     0,
@@ -38,6 +37,9 @@ class DeepPolyBounding:
         #     False,
         #     False,
         # )
+
+        from src.utilities.argument_parsing import get_args, get_config_from_json
+        config = get_config_from_json("configs/2dRandomNetwork1.json")
         verifier = MNBaBVerifier(
             originalNetwork,
             device,
@@ -68,6 +70,7 @@ class DeepPolyBounding:
                    timer=None
                    ):
         lbs = []
+        ubs = []
         for batch in range(inputLowerBound.shape[0]):
             lb, ub = self.babOptimizer.bound_minimum_with_deep_poly(queryCoefficient.unsqueeze(0).unsqueeze(0),
                                                                     self.network,
@@ -77,12 +80,13 @@ class DeepPolyBounding:
             # boundedSubProblem, intermediateBound =\
             #     self.verifier.bab.optimizer.bound_root_subproblem(-queryCoefficient.unsqueeze(0).unsqueeze(0),
             #                                                       self.network,
-            #                                                       inputLowerBound, inputUpperBound,
+            #                                                       inputLowerBound[batch, :],
+            #                                                       inputUpperBound[batch, :],
             #                                                       float("inf"), 300,
             #                                                       self.verifier.bab.device)
-            #
             # lb = [boundedSubProblem.lower_bound]
 
             lbs.append(lb[0])
+            ubs.append(ub[0])
 
-        return torch.Tensor(lbs).to(self.device)
+        return torch.Tensor(lbs).to(self.device), torch.Tensor(ubs).to(self.device)

@@ -1,7 +1,7 @@
 {
-    "eps": 0.001,
+    "eps": 0.1,
     "verbose": 0,
-    "verboseMultiHorizon": 1,
+    "verboseMultiHorizon": 0,
     "verboseEssential": 0,
     "scoreFunction": "worstLowerBound",
     "lowerBoundMethod": "deepPoly",
@@ -50,8 +50,9 @@
         -0.25
     ],
     "upperCoordinate": [
-        3.0,
+        3,
         0.25
+
     ],
     "pathToStateDictionary": "Networks/doubleIntegrator_reachlp.pth"
 }

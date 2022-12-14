@@ -17,7 +17,7 @@
     "pgdIterNum": 0,
     "pgdNumberOfInitializations": 1,
     "pgdStepSize": 0.5,
-    "finalHorizon": 1,
+    "finalHorizon": 5,
     "initialGD": false,
     "performMultiStepSingleHorizon": false,
     "plotProjectionsOfHigherDims": true,

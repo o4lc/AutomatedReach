@@ -95,9 +95,6 @@ def main():
     # configFileToLoad = "Config/fourDim.json"
     with open(configFileToLoad, 'r') as file:
         config = json.load(file)
-    # config['A'] = None
-    # config['B'] = None
-    # config['c'] = None
     lowerBoundMethod = config['lowerBoundMethod']
     eps = config['eps']
     verboseMultiHorizon = config['verboseMultiHorizon']
@@ -118,10 +115,10 @@ def main():
 
     if not verboseMultiHorizon:
         plotProjectionsOfHigherDims = False
-    if lowerBoundMethod == "lipschitz":
-        if finalHorizon > 1 and config['performMultiStepSingleHorizon'] and\
-                (config['normToUseLipschitz'] != 2 or not config['useSdpForLipschitzCalculation']):
-            raise ValueError
+
+    if finalHorizon > 1 and config['performMultiStepSingleHorizon'] and\
+            (config['normToUseLipschitz'] != 2 or not config['useSdpForLipschitzCalculation']):
+        raise ValueError
 
     if torch.cuda.is_available():
         device = torch.device("cuda", 0)
@@ -150,22 +147,18 @@ def main():
 
     lowerCoordinate = lowerCoordinate.to(device)
     upperCoordinate = upperCoordinate.to(device)
-    if lowerBoundMethod == "lipschitz":
-        network = NeuralNetwork(pathToStateDictionary, A, B, c)
-    elif lowerBoundMethod == "deepPoly":
-        network = NeuralNetworkReachability(pathToStateDictionary, lowerCoordinate, upperCoordinate, A, B, c,
-                                            finalHorizon, config['performMultiStepSingleHorizon'])
-        if config['performMultiStepSingleHorizon']:
-            finalHorizon = 1
+
+    network = NeuralNetwork(pathToStateDictionary, A, B, c)
+
     horizonForLipschitz = 1
     originalNetwork = None
-    if lowerBoundMethod == "lipschitz":
-        if config['performMultiStepSingleHorizon']:
-            originalNetwork = copy.deepcopy(network)
-            horizonForLipschitz = finalHorizon
-            network.setRepetition(finalHorizon)
-            # repeatNetwork(network, finalHorizon)
-            finalHorizon = 1
+
+    if config['performMultiStepSingleHorizon']:
+        originalNetwork = copy.deepcopy(network)
+        horizonForLipschitz = finalHorizon
+        network.setRepetition(finalHorizon)
+        # repeatNetwork(network, finalHorizon)
+        finalHorizon = 1
 
     dim = network.Linear[0].weight.shape[1]
     network.to(device)
@@ -224,20 +217,13 @@ def main():
                 upperCoordinate[i] = u - center
                 lowerCoordinate[i] = l - center
 
-            if lowerBoundMethod == "lipschitz" \
-                    or (lowerBoundMethod == "deepPoly" and not config['performMultiStepSingleHorizon']):
-                rotation = nn.Linear(dim, dim)
-                rotation.weight = torch.nn.parameter.Parameter(torch.linalg.inv(torch.from_numpy(data_comp).to(defaultDtype).to(device)))
-                rotation.bias = torch.nn.parameter.Parameter(torch.from_numpy(data_mean).to(defaultDtype).to(device))
-                if lowerBoundMethod == "lipschitz":
-                    network.setRotation(rotation)
-                elif lowerBoundMethod == "deepPoly":
 
-                    solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections, imageData, config,
-                                                iteration, device, network,
-                                                plottingConstants, calculatedLowerBoundsforpcaDirections,
-                                                originalNetwork, horizonForLipschitz, looseLowerBound=True)
-                    print("incomplete")
+            rotation = nn.Linear(dim, dim)
+            rotation.weight = torch.nn.parameter.Parameter(torch.linalg.inv(torch.from_numpy(data_comp).to(defaultDtype).to(device)))
+            rotation.bias = torch.nn.parameter.Parameter(torch.from_numpy(data_mean).to(defaultDtype).to(device))
+
+            network.setRotation(rotation)
+
         if verboseMultiHorizon:
             AA = -np.array(pcaDirections[indexToStartReadingBoundsForPlotting:])
             AA = AA[:, :2]
