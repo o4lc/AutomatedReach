@@ -94,8 +94,8 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
 
 
 def main():
-    # configFileToLoad = "Config/doubleIntegratorDeepPoly.json"
-    configFileToLoad = "Config/quadRotorDeepPoly.json"
+    configFileToLoad = "Config/doubleIntegratorDeepPoly.json"
+    # configFileToLoad = "Config/quadRotorDeepPoly.json"
     # configFileToLoad = "Config/fourDimDeepPoly.json"
     with open(configFileToLoad, 'r') as file:
         config = json.load(file)
@@ -133,24 +133,9 @@ def main():
         device = torch.device("cpu")
 
     # Temporary
-    device = torch.device("cpu")
+    device = torch.device("cuda", 0)
     print(device)
     print(' ')
-
-    # fileName = "randomNetwork.pth"
-    # fileName = "randomNetwork2.pth"
-    # fileName = "randomNetwork3.pth"
-    # fileName = "trainedNetwork1.pth"
-    # fileName = "doubleIntegrator.pth"
-    # fileName = "doubleIntegrator_reachlp.pth"
-    # fileName = "quadRotor5.pth"
-    # fileName = "quadRotorv2.0.pth"
-    # fileName = "RobotArmStateDict2-50-2.pth"
-    # fileName = "Test3-5-3.pth"
-    # fileName = "ACASXU.pth"
-    # fileName = "mnist_3_50.pth"
-    # fileName = "quadRotorFullLoopV1.8.pth"
-    fileName = "quadRotorNormalV1.2.pth"
 
     lowerCoordinate = lowerCoordinate.to(device)
     upperCoordinate = upperCoordinate.to(device)
@@ -461,7 +446,7 @@ def main():
 
     print('The algorithm took (s):', endTime - startTime, 'with eps =', eps)
 
-    torch.save(plottingData, "Output/reachDeep" + fileName)
+    torch.save(plottingData, "Output/reachDeep" + configFileToLoad[:-4] + "pth")
     return endTime - startTime
 
 
