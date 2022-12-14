@@ -18,47 +18,27 @@ class DeepPolyBounding:
         freeze_network(originalNetwork)
         self.network = originalNetwork
 
-        # verifier = MNBaBVerifier(
-        #     originalNetwork,
-        #     device,
-        #     False,
-        #     0,
-        #     0,
-        #     False,
-        #     0,
-        #     0,
-        #     {},
-        #     0,
-        #     0,
-        #     0,
-        #     [],
-        #     {},
-        #     False,
-        #     False,
-        #     False,
-        # )
-
-        from src.utilities.argument_parsing import get_args, get_config_from_json
-        config = get_config_from_json("configs/2dRandomNetwork1.json")
         verifier = MNBaBVerifier(
             originalNetwork,
             device,
-            config.optimize_alpha,
-            config.alpha_lr,
-            config.alpha_opt_iterations,
-            config.optimize_prima,
-            config.prima_lr,
-            config.prima_opt_iterations,
-            config.prima_hyperparameters,
-            config.peak_lr_scaling_factor,
-            config.final_lr_div_factor,
-            config.beta_lr,
-            config.bab_batch_sizes,
-            config.branching,
-            config.recompute_intermediate_bounds_after_branching,
-            config.use_dependence_sets,
-            config.use_early_termination,
+            False,
+            0,
+            0,
+            False,
+            0,
+            0,
+            {},
+            0,
+            0,
+            0,
+            [],
+            {},
+            False,
+            False,
+            False,
         )
+
+
         self.verifier = verifier
         self.babOptimizer = verifier.bab.optimizer
         self.device = device
@@ -77,14 +57,6 @@ class DeepPolyBounding:
                                                                     inputLowerBound[batch, :],
                                                                     inputUpperBound[batch, :])
 
-            # boundedSubProblem, intermediateBound =\
-            #     self.verifier.bab.optimizer.bound_root_subproblem(-queryCoefficient.unsqueeze(0).unsqueeze(0),
-            #                                                       self.network,
-            #                                                       inputLowerBound[batch, :],
-            #                                                       inputUpperBound[batch, :],
-            #                                                       float("inf"), 300,
-            #                                                       self.verifier.bab.device)
-            # lb = [boundedSubProblem.lower_bound]
 
             lbs.append(lb[0])
             ubs.append(ub[0])

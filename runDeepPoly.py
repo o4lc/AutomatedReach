@@ -94,8 +94,8 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
 
 
 def main():
-    configFileToLoad = "Config/doubleIntegratorDeepPoly.json"
-    # configFileToLoad = "Config/quadRotorDeepPoly.json"
+    # configFileToLoad = "Config/doubleIntegratorDeepPoly.json"
+    configFileToLoad = "Config/quadRotorDeepPoly.json"
     # configFileToLoad = "Config/fourDimDeepPoly.json"
     with open(configFileToLoad, 'r') as file:
         config = json.load(file)

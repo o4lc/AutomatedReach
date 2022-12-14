@@ -1,7 +1,7 @@
 {
     "eps": 0.1,
     "verbose": 0,
-    "verboseMultiHorizon": 0,
+    "verboseMultiHorizon": 1,
     "verboseEssential": 0,
     "scoreFunction": "worstLowerBound",
     "lowerBoundMethod": "deepPoly",
