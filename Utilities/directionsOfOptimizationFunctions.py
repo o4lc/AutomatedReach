@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def calculateDirectionsToOptimize(baseDirections, addReluZeroPlanes, weights, addStandardBasisDirectionsAtEnd,
                                   removeSimilarDirections=False, similarityTolerance=0.005):
     directionsToOptimize = baseDirections.copy()
@@ -24,14 +25,54 @@ def calculateDirectionsToOptimize(baseDirections, addReluZeroPlanes, weights, ad
     directionsToOptimize = directionsToOptimize / np.linalg.norm(directionsToOptimize, axis=1, keepdims=True)
 
     if addStandardBasisDirectionsAtEnd:
-        outputBaseDirections, [upperBoundIndices, lowerBoundIndices] = createStandardBasisDirection(directionsToOptimize.shape[1], directionsToOptimize.shape[0])
+        outputBaseDirections, [upperBoundIndices, lowerBoundIndices] = createStandardBasisDirection(
+            directionsToOptimize.shape[1], directionsToOptimize.shape[0])
         directionsToOptimize = np.vstack([directionsToOptimize, outputBaseDirections])
 
     if addStandardBasisDirectionsAtEnd:
         return directionsToOptimize, lowerBoundIndices, upperBoundIndices
     return directionsToOptimize
 
-def calculateDirectionsOfMinkowskiSum(firstMultiplierMatrix, firstPolytopeMatrix, secondMultiplierMatrix, secondPolytopeMatrix,
+
+def calculateDirectionsOfMinkowskiSumLayer(firstMultiplierMatrix, firstPolytopeMatrix, secondMultiplierMatrix,
+                                           secondPolytopeMatrix,
+                                           addStandardBasisDirectionsAtEnd,
+                                           removeSimilarDirections=False, similarityTolerance=0.005):
+    """
+    y = firstMultiplierMatrix * x1 + secondMultiplierMatrix * x2
+    firstPolytopeMatrix * x1 <= d1
+    secondPolytopeMatrix * x2 <= d2
+
+    :param firstMultiplierMatrix:
+    :param firstPolytopeMatrix:
+    :param secondMultiplierMatrix:
+    :param secondPolytopeMatrix:
+    :return:
+    """
+
+    directions = np.vstack(
+        [np.hstack([firstPolytopeMatrix, np.zeros((firstPolytopeMatrix.shape[0], secondPolytopeMatrix.shape[1]))]),
+         np.hstack([np.zeros((secondPolytopeMatrix.shape[0], firstPolytopeMatrix.shape[1])),
+                    secondPolytopeMatrix])]) @ np.linalg.pinv(
+        np.hstack([firstMultiplierMatrix, secondMultiplierMatrix]))
+
+    if removeSimilarDirections:
+        directions = removeSimilarRows(directions, similarityTolerance)
+
+    if addStandardBasisDirectionsAtEnd:
+        outputBaseDirections, [upperBoundIndices, lowerBoundIndices] = createStandardBasisDirection(directions.shape[1],
+                                                                                                    directions.shape[0])
+        directions = np.vstack([directions, outputBaseDirections])
+
+    directions = np.delete(directions, np.linalg.norm(directions, axis=1) == 0, 0)
+    directions = directions / np.linalg.norm(directions, axis=1, keepdims=True)
+    if addStandardBasisDirectionsAtEnd:
+        return directions, lowerBoundIndices, upperBoundIndices
+    return directions
+
+
+def calculateDirectionsOfMinkowskiSum(firstMultiplierMatrix, firstPolytopeMatrix, secondMultiplierMatrix,
+                                      secondPolytopeMatrix,
                                       addStandardBasisDirectionsAtEnd,
                                       removeSimilarDirections=False, similarityTolerance=0.005):
     """
@@ -57,12 +98,12 @@ def calculateDirectionsOfMinkowskiSum(firstMultiplierMatrix, firstPolytopeMatrix
             secondSetDirection = np.vstack([secondSetDirection, uMatrix[:, j].T, -uMatrix[:, j].T])
     directions = np.vstack([firstSetDirection, secondSetDirection])
 
-
     if removeSimilarDirections:
         directions = removeSimilarRows(directions, similarityTolerance)
 
     if addStandardBasisDirectionsAtEnd:
-        outputBaseDirections, [upperBoundIndices, lowerBoundIndices] = createStandardBasisDirection(directions.shape[1], directions.shape[0])
+        outputBaseDirections, [upperBoundIndices, lowerBoundIndices] = createStandardBasisDirection(directions.shape[1],
+                                                                                                    directions.shape[0])
         directions = np.vstack([directions, outputBaseDirections])
 
     directions = np.delete(directions, np.linalg.norm(directions, axis=1) == 0, 0)
@@ -71,8 +112,9 @@ def calculateDirectionsOfMinkowskiSum(firstMultiplierMatrix, firstPolytopeMatrix
         return directions, lowerBoundIndices, upperBoundIndices
     return directions
 
+
 def createStandardBasisDirection(dimension, returnIndexOffset=0):
-    positiveDirectionIndices = returnIndexOffset +  np.arange(dimension)
+    positiveDirectionIndices = returnIndexOffset + np.arange(dimension)
     negativeDirectionIndices = returnIndexOffset + dimension + np.arange(dimension)
 
     baseDirections = np.zeros((2 * dimension, dimension))
@@ -82,8 +124,8 @@ def createStandardBasisDirection(dimension, returnIndexOffset=0):
         baseDirections[dimension + i, i] = -1
     return baseDirections, [positiveDirectionIndices, negativeDirectionIndices]
 
-def removeSimilarRows(directions, similarityTolerance=0.005):
 
+def removeSimilarRows(directions, similarityTolerance=0.005):
     directions = np.delete(directions, np.linalg.norm(directions, axis=1) == 0, 0)
     directions = directions / np.linalg.norm(directions, axis=1, keepdims=True)
     indexesToDelete = []
@@ -112,7 +154,8 @@ def getDirectionsToOptimize(A, B, currentPolytope, Ws,
     higherDimensionD = []
     problemDimension = currentPolytope.shape[1]
     if optimizationDirectionChoice == "hyperCube":
-        directionsToOptimize, [upperBoundIndices, lowerBoundIndices] = createStandardBasisDirection(currentPolytope.shape[1])
+        directionsToOptimize, [upperBoundIndices, lowerBoundIndices] = createStandardBasisDirection(
+            currentPolytope.shape[1])
         if higherDimensionPlottingDirections:
             higherDimensionD = np.zeros((problemDimension, 4))
             higherDimensionD[0, firstPlottingDimension] = 1
@@ -121,22 +164,22 @@ def getDirectionsToOptimize(A, B, currentPolytope, Ws,
             higherDimensionD[3, secondPlottingDimension] = -1
     elif optimizationDirectionChoice == "inverseMethod":
         directionsToOptimize = calculateDirectionsToOptimize(currentPolytope, addReluZeroPlanes, Ws, False,
-                                                      removeSimilarDirections=removeSimilarDirections,
+                                                             removeSimilarDirections=removeSimilarDirections,
                                                              similarityTolerance=similarityTolerance)
 
-
-
         if addStandardBasisDirectionsAtEnd:
-            directionsToOptimize, lowerBoundIndices, upperBoundIndices =\
-                calculateDirectionsOfMinkowskiSum(A, currentPolytope, B, directionsToOptimize, addStandardBasisDirectionsAtEnd,
-                                                  removeSimilarDirections=removeSimilarDirections, similarityTolerance=similarityTolerance)
+            directionsToOptimize, lowerBoundIndices, upperBoundIndices = \
+                calculateDirectionsOfMinkowskiSum(A, currentPolytope, B, directionsToOptimize,
+                                                       addStandardBasisDirectionsAtEnd,
+                                                       removeSimilarDirections=removeSimilarDirections,
+                                                       similarityTolerance=similarityTolerance)
         else:
             lowerBoundIndices = upperBoundIndices = None
             directionsToOptimize = \
                 calculateDirectionsOfMinkowskiSum(A, currentPolytope, B, directionsToOptimize,
-                                                  addStandardBasisDirectionsAtEnd,
-                                                  removeSimilarDirections=removeSimilarDirections,
-                                                  similarityTolerance=similarityTolerance)
+                                                       addStandardBasisDirectionsAtEnd,
+                                                       removeSimilarDirections=removeSimilarDirections,
+                                                       similarityTolerance=similarityTolerance)
         if higherDimensionPlottingDirections:
             # projection = np.zeros((2, problemDimension))
             # projection[0, firstPlottingDimension] = 1

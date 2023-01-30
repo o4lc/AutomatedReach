@@ -94,10 +94,11 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
 
 
 def main():
-    configFileToLoad = "Config/doubleIntegratorDeepPoly.json"
-    # configFileToLoad = "Config/quadRotorDeepPoly.json"
-    # configFileToLoad = "Config/fourDimDeepPoly.json"
-    with open(configFileToLoad, 'r') as file:
+    configBaseLocation = "Config/"
+    configFileToLoad = "doubleIntegratorDeepPoly.json"
+    # configFileToLoad = "quadRotorDeepPoly.json"
+    # configFileToLoad = "fourDimDeepPoly.json"
+    with open(configBaseLocation + configFileToLoad, 'r') as file:
         config = json.load(file)
     # config['A'] = None
     # config['B'] = None
@@ -133,7 +134,7 @@ def main():
         device = torch.device("cpu")
 
     # Temporary
-    device = torch.device("cuda", 0)
+    device = torch.device("cpu", 0)
     print(device)
     print(' ')
 
@@ -196,6 +197,13 @@ def main():
                 indexToStartReadingBoundsForPlotting = calculateDirectionsOfHigherDimProjections(directions,
                                                                                                  imageDataCpu)
         else:
+            weights = []
+            stateDictionary = network.Linear.state_dict()
+            for key in stateDictionary:
+                if "weight" in key:
+                    weights.append(stateDictionary[key])
+
+
             for j in range(iteration + 1):
                 directions, (lowerBoundIndices, upperBoundIndices), higherDimensionPlottingDirections \
                     = getDirectionsToOptimize(A.cpu().numpy(), B.cpu().numpy(), directions, originalWeights,
