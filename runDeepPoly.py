@@ -84,7 +84,9 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
                             initialBub=initialBub,
                             lowerBoundExtraInfo=lowerBoundExtraInfo
                             )
-        if looseLowerBound or i in lowerBoundIndices or i in upperBoundIndices:
+        if looseLowerBound \
+                or (lowerBoundIndices is not None and i in lowerBoundIndices) \
+                or (upperBoundIndices is not None and i in upperBoundIndices):
             BB.spaceOutThreshold = 1
         lowerBound, upperBound, space_left = BB.run()
         plottingConstants[i] = -lowerBound
@@ -134,7 +136,7 @@ def main():
         device = torch.device("cpu")
 
     # Temporary
-    device = torch.device("cpu", 0)
+    # device = torch.device("cpu", 0)
     print(device)
     print(' ')
 
@@ -142,7 +144,7 @@ def main():
     upperCoordinate = upperCoordinate.to(device)
     lowerCoordinates = [lowerCoordinate.detach().clone()]
     upperCoordinates = [upperCoordinate.detach().clone()]
-    network = NeuralNetworkReachability(pathToStateDictionary, lowerCoordinate, upperCoordinate, A, B, c,
+    network = NeuralNetworkReachability(pathToStateDictionary, A, B, c,
                                         1, config['performMultiStepSingleHorizon'])
     originalWeights = network.originalWeights
     horizonForLipschitz = 1
@@ -175,12 +177,11 @@ def main():
         if iteration > 0:
             lowerCoordinates.append(lowerCoordinate.detach().clone())
             upperCoordinates.append(upperCoordinate.detach().clone())
-            layers = []
-            for j in range(iteration + 1):
-                layers += NeuralNetworkReachability(pathToStateDictionary, lowerCoordinates[j], upperCoordinates[j],
-                                                    A, B, c,
-                                                    1, config['performMultiStepSingleHorizon']).layers
-            network = NeuralNetworkReachability(layers=layers)
+
+            network = NeuralNetworkReachability(pathToStateDictionary,
+                                                A, B, c,
+                                                iteration + 1, config['performMultiStepSingleHorizon'])
+
         directions = initialPolytope
 
         with no_grad():
@@ -197,18 +198,11 @@ def main():
                 indexToStartReadingBoundsForPlotting = calculateDirectionsOfHigherDimProjections(directions,
                                                                                                  imageDataCpu)
         else:
-            weights = []
-            stateDictionary = network.Linear.state_dict()
-            for key in stateDictionary:
-                if "weight" in key:
-                    weights.append(stateDictionary[key])
-
-
             for j in range(iteration + 1):
                 directions, (lowerBoundIndices, upperBoundIndices), higherDimensionPlottingDirections \
                     = getDirectionsToOptimize(A.cpu().numpy(), B.cpu().numpy(), directions, originalWeights,
                                               higherDimensionPlottingDirections=plotProjectionsOfHigherDims,
-                                              addStandardBasisDirectionsAtEnd=j == iteration,
+                                              addStandardBasisDirectionsAtEnd=False,
                                               similarityTolerance=0.02)
             if plotProjectionsOfHigherDims:
                 indexToStartReadingBoundsForPlotting = directions.shape[0]
@@ -231,11 +225,11 @@ def main():
                                     originalNetwork, horizonForLipschitz,
                                     lowerBoundIndices=lowerBoundIndices, upperBoundIndices=upperBoundIndices)
 
-        if finalHorizon > 1:
-            for i, index in enumerate(lowerBoundIndices):
-                upperCoordinate[i] = -calculatedLowerBoundsForDirections[index]
-            for i, index in enumerate(upperBoundIndices):
-                lowerCoordinate[i] = calculatedLowerBoundsForDirections[index]
+        # if finalHorizon > 1:
+            # for i, index in enumerate(lowerBoundIndices):
+            #     upperCoordinate[i] = -calculatedLowerBoundsForDirections[index]
+            # for i, index in enumerate(upperBoundIndices):
+            #     lowerCoordinate[i] = calculatedLowerBoundsForDirections[index]
         if verboseMultiHorizon:
             AA = -np.array(directions[indexToStartReadingBoundsForPlotting:])
             AA = AA[:, :2]

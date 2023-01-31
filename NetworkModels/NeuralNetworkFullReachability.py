@@ -5,7 +5,7 @@ from packages import *
 
 
 class NeuralNetworkReachability(nn.Module):
-    def __init__(self, path=None, lowerBound=None, upperBound=None,
+    def __init__(self, path=None,
                  A=None, B=None, c=None,
                  numberOfTimeSteps=1, multiStepSingleHorizon=True,
                  layers=None):
@@ -15,7 +15,9 @@ class NeuralNetworkReachability(nn.Module):
         else:
             cpuDevice = torch.device("cpu")
             stateDictionary = torch.load(path, map_location=cpuDevice)
-            inputDimension = lowerBound.shape[0]
+            for key in stateDictionary:
+                inputDimension = stateDictionary[key].shape[1]
+                break
             for key in reversed(stateDictionary):
                 outputDimension = stateDictionary[key].shape[0]
                 break
@@ -42,11 +44,12 @@ class NeuralNetworkReachability(nn.Module):
             #     self.load_state_dict(stateDictionary)
             # else:
 
-            self.layers, self.originalWeights = createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimension, flag)
+            self.layers, self.originalWeights =\
+                createLayersForSingleStep(A, B, c, stateDictionary, inputDimension, flag)
 
             for i in range(numberOfTimeSteps - 1):
-                lowerBound, upperBound = propagateBoundsInNetwork(lowerBound, upperBound, self.layers)
-                layers, _ = createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimension, flag)
+
+                layers, _ = createLayersForSingleStep(A, B, c, stateDictionary, inputDimension, flag)
                 self.layers += layers
 
             # self.layers = layers
@@ -80,13 +83,15 @@ class NeuralNetworkReachability(nn.Module):
         return x
 
 
-def createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimension,
+def createLayersForSingleStep(A, B, c, stateDictionary, inputDimension,
                               fullReachabilityFlag=True):
     cpuDevice = torch.device("cpu")
-    layers = [nn.Linear(inputDimension, 2 * inputDimension)]
+    layers = [nn.Linear(inputDimension, 3 * inputDimension)]
     originalWeights = []
-    layers[0].weight = torch.nn.Parameter(torch.vstack([torch.eye(inputDimension), torch.eye(inputDimension)]))
-    layers[0].bias = torch.nn.Parameter(torch.hstack([-lowerBound.to(cpuDevice), torch.zeros(inputDimension)]))
+    layers[0].weight = torch.nn.Parameter(torch.vstack([torch.eye(inputDimension),
+                                                        -torch.eye(inputDimension),
+                                                        torch.eye(inputDimension)]))
+    layers[0].bias = torch.nn.Parameter(torch.zeros(int(3 * inputDimension)))
     # layers[0].bias = torch.nn.Parameter(torch.hstack([-lowerBound, -lowerBound]))
     # layers.append(nn.ReLU())
     # layers.append(nn.Identity())
@@ -95,35 +100,30 @@ def createLayersForSingleStep(A, B, c, stateDictionary, lowerBound, inputDimensi
         if "weight" in keyEntry:
             originalWeights.append(stateDictionary[keyEntry])
             weightKeyEntry = keyEntry
-            layers.append(nn.Linear(inputDimension + stateDictionary[keyEntry].shape[1],
-                                    inputDimension + stateDictionary[keyEntry].shape[0]))
+            layers.append(nn.Linear(int(2 * inputDimension) + stateDictionary[keyEntry].shape[1],
+                                    int(2 * inputDimension) + stateDictionary[keyEntry].shape[0]))
 
             layers[-1].weight = torch.nn.Parameter(torch.block_diag(torch.eye(inputDimension),
+                                                                    torch.eye(inputDimension),
                                                                     stateDictionary[keyEntry]))
-            if count == 0:
-                count += 1
-                layers[-1].bias = \
-                    torch.nn.Parameter(torch.hstack([torch.zeros(inputDimension),
-                                                     stateDictionary[keyEntry[:-6] + "bias"] +
-                                                     stateDictionary[keyEntry] @ lowerBound.to(cpuDevice)]))
-            else:
-                layers[-1].bias = torch.nn.Parameter(torch.hstack([torch.zeros(inputDimension),
-                                                                   stateDictionary[keyEntry[:-6] + "bias"]]))
+
+            layers[-1].bias = torch.nn.Parameter(torch.hstack([torch.zeros(int(2 * inputDimension)),
+                                                               stateDictionary[keyEntry[:-6] + "bias"]]))
             layers.append(nn.ReLU())
     layers.pop()
-    outputDimension = layers[-1].bias.shape[0] - inputDimension
+    outputDimension = layers[-1].bias.shape[0] - int(2 * inputDimension)
     # layers[-1].bias = torch.nn.Parameter(torch.hstack([lowerBound,
     #                                                    stateDictionary[weightKeyEntry[:-6] + "bias"]])
     #                                      + 100 * torch.ones(inputDimension + outputDimension))
-    layers[-1].bias = torch.nn.Parameter(torch.hstack([lowerBound.to(cpuDevice),
-                                                       stateDictionary[
-                                                           weightKeyEntry[:-6] + "bias"]]))
+    # layers[-1].bias = torch.nn.Parameter(torch.hstack([lowerBound.to(cpuDevice),
+    #                                                    stateDictionary[
+    #                                                        weightKeyEntry[:-6] + "bias"]]))
 
     # layers.append(nn.ReLU())
     # layers.append(nn.Identity())
     layers.append(nn.Linear(layers[-1].bias.shape[0],
                             outputDimension if fullReachabilityFlag else inputDimension))
-    layers[-1].weight = torch.nn.Parameter(torch.hstack([A, B]))
+    layers[-1].weight = torch.nn.Parameter(torch.hstack([A, -A, B]))
     # layers[-1].bias = torch.nn.Parameter(c - (100 * A @ torch.ones((inputDimension, 1)) +
     #                                                        100 * B @ torch.ones((outputDimension, 1))).squeeze())
     layers[-1].bias = torch.nn.Parameter(c)
