@@ -99,7 +99,7 @@ def main():
     configBaseLocation = "Config/"
     configFileToLoad = "doubleIntegratorDeepPoly.json"
     # configFileToLoad = "quadRotorDeepPoly.json"
-    # configFileToLoad = "fourDimDeepPoly.json"
+    # configFileToLoad = "fourD imDeepPoly.json"
     with open(configBaseLocation + configFileToLoad, 'r') as file:
         config = json.load(file)
     # config['A'] = None
@@ -136,7 +136,7 @@ def main():
         device = torch.device("cpu")
 
     # Temporary
-    # device = torch.device("cpu", 0)
+    device = torch.device("cpu", 0)
     print(device)
     print(' ')
 
@@ -181,6 +181,7 @@ def main():
             network = NeuralNetworkReachability(pathToStateDictionary,
                                                 A, B, c,
                                                 iteration + 1, config['performMultiStepSingleHorizon'])
+            network.to(device)
 
         directions = initialPolytope
 

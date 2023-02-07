@@ -1,3 +1,5 @@
+import numpy as np
+
 from packages import *
 
 from BranchAndBound import BranchAndBound
@@ -70,10 +72,10 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
                                    "horizon": horizonForLipschitz,
                                    "originalNetwork": originalNetwork}
         c = pcaDirections[i].to(device)
-        if True:
+        if False:
             print('** Solving Horizon: ', iteration, 'dimension: ', i)
         initialBub = torch.min(imageData @ c)
-        print("initialBuB", initialBub)
+        # print("initialBuB", initialBub)
         # initialBub = None
         BB = BranchAndBound(upperCoordinate, lowerCoordinate, config,
                             inputDimension=dim, network=network, queryCoefficient=c, currDim=i, device=device,
@@ -86,7 +88,7 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
         plottingConstants[i] = -lowerBound
         calculatedLowerBoundsforpcaDirections[i] = lowerBound
 
-        print('Best lower/upper bounds are:', lowerBound, '->', upperBound)
+        # print('Best lower/upper bounds are:', lowerBound, '->', upperBound)
 
 
 def main():
@@ -166,7 +168,7 @@ def main():
         plotProjectionsOfHigherDims = False
 
     plottingData = {}
-    print(network)
+    # print(network)
     inputData = (upperCoordinate - lowerCoordinate) * torch.rand(1000, dim, device=device) \
                                                         + lowerCoordinate
     if verboseMultiHorizon:
@@ -232,7 +234,7 @@ def main():
                 bb.append(-calculatedLowerBoundsforpcaDirections[i])
 
             bb = np.array(bb)
-            print(bb)
+            # print(bb)
             pltp = polytope.Polytope(AA, bb)
             ax = pltp.plot(ax, alpha = 0.1, color='grey', edgecolor='black')
             ax.set_xlim([0, 5])
@@ -291,7 +293,8 @@ def main():
 
 if __name__ == '__main__':
     runTimes = []
-    for i in range(1):
+    for i in range(100):
         runTimes.append(main())
     print(np.mean(runTimes))
+    print(np.var(runTimes))
     plt.show()
