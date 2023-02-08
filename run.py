@@ -63,6 +63,8 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
                                 originalNetwork=None, horizonForLipschitz=1, looseLowerBound=False):
     dim = network.Linear[0].weight.shape[1]
     lowerBoundExtraInfo = {}
+    timeForInitialGd = 0
+    totalNumberOfNodes = 0
     for i in range(len(pcaDirections)):
         if config['lowerBoundMethod'] == "lipschitz":
             previousLipschitzCalculations = []
@@ -74,12 +76,17 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
         c = pcaDirections[i].to(device)
         if False:
             print('** Solving Horizon: ', iteration, 'dimension: ', i)
-        initialBub = torch.min(imageData @ c)
+
+        initialBubData = torch.min(imageData @ c, 0)
+        initialBub = initialBubData.values
+        initialBubPoint = imageData[initialBubData.indices:initialBubData.indices+1, :]
+        # initialBub = None
         # print("initialBuB", initialBub)
         # initialBub = None
         BB = BranchAndBound(upperCoordinate, lowerCoordinate, config,
                             inputDimension=dim, network=network, queryCoefficient=c, currDim=i, device=device,
                             initialBub=initialBub,
+                            initialBubPoint=initialBubPoint,
                             lowerBoundExtraInfo=lowerBoundExtraInfo
                             )
         if looseLowerBound:
@@ -87,8 +94,10 @@ def solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
         lowerBound, upperBound, space_left = BB.run()
         plottingConstants[i] = -lowerBound
         calculatedLowerBoundsforpcaDirections[i] = lowerBound
-
+        timeForInitialGd += BB.timeForInitialGd
+        totalNumberOfNodes += BB.numberOfBranches
         # print('Best lower/upper bounds are:', lowerBound, '->', upperBound)
+    return timeForInitialGd, totalNumberOfNodes
 
 
 def main():
@@ -180,7 +189,8 @@ def main():
     plottingData[0] = {"exactSet": inputData}
 
     startTime = time.time()
-
+    timeForInitialGd = 0
+    totalNumberOfBranches = 0
     for iteration in range(finalHorizon):
         with no_grad():
             imageData = network(inputData)
@@ -204,10 +214,14 @@ def main():
         pcaDirections = torch.Tensor(np.array(pcaDirections))
         calculatedLowerBoundsforpcaDirections = torch.Tensor(np.zeros(len(pcaDirections)))
 
-        solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections, imageData, config, iteration, device, network,
-                                    plottingConstants, calculatedLowerBoundsforpcaDirections,
-                                    originalNetwork, horizonForLipschitz)
-
+        t1, t2\
+            = solveSingleStepReachability(lowerCoordinate, upperCoordinate, pcaDirections,
+                                          imageData, config, iteration, device, network,
+                                          plottingConstants,
+                                          calculatedLowerBoundsforpcaDirections,
+                                          originalNetwork, horizonForLipschitz)
+        timeForInitialGd += t1
+        totalNumberOfBranches += t2
         if finalHorizon > 1:
             centers = []
             for i, component in enumerate(data_comp):
@@ -285,16 +299,22 @@ def main():
 
     endTime = time.time()
 
-    print('The algorithm took (s):', endTime - startTime, 'with eps =', eps)
+    print('The algorithm took (s): {} with eps = {}. Time spent on initial PGD {}, total time without initial PGD {}'
+          .format(endTime - startTime, eps, timeForInitialGd, endTime - startTime - timeForInitialGd))
+    print("Total number of branches generated {}".format(totalNumberOfBranches))
 
     torch.save(plottingData, "Output/reachLip" + fileName)
-    return endTime - startTime
+    return endTime - startTime, totalNumberOfBranches
 
 
 if __name__ == '__main__':
     runTimes = []
-    for i in range(100):
-        runTimes.append(main())
-    print(np.mean(runTimes))
-    print(np.var(runTimes))
+    branches = []
+    for i in range(1):
+        timeToRun, branch = main()
+        runTimes.append(timeToRun)
+        branches.append(branch)
+    print("Average runtime {}".format(np.mean(runTimes)))
+    print("Runtime variance {}".format(np.var(runTimes)))
+    print("average branches {}".format(np.mean(branches)))
     plt.show()

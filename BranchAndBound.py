@@ -1,3 +1,5 @@
+import time
+
 from packages import *
 from Utilities.Plotter import Plotter
 from BranchAndBoundNode import BB_node
@@ -13,11 +15,13 @@ class BranchAndBound:
                  device=torch.device("cuda", 0),
                  maximumBatchSize=1024,
                  initialBub=None,
+                 initialBubPoint=None,
                  lowerBoundExtraInfo=None
                  ):
 
         self.spaceNodes = [BB_node(np.infty, -np.infty, coordUp, coordLow, scoreFunction=config['scoreFunction'])]
         self.bestUpperBound = initialBub
+        self.initialBubPoint = initialBubPoint
         self.bestLowerBound = None
         self.initCoordUp = coordUp
         self.initCoordLow = coordLow
@@ -44,6 +48,7 @@ class BranchAndBound:
         self.device = device
         self.maximumBatchSize = 1024
         self.initialGD = config['initialGD']
+        self.timeForInitialGd = 0
         self.timers = Timers(["lowerBound",
                               "lowerBound:lipschitzForwardPass", "lowerBound:lipschitzCalc",
                               "lowerBound:lipschitzSearch",
@@ -54,6 +59,7 @@ class BranchAndBound:
                               ])
         self.numberOfBranches = 0
         self.spaceOutThreshold = 40000
+
 
     def prune(self):
         for i in range(len(self.spaceNodes) - 1, -1, -1):
@@ -143,14 +149,25 @@ class BranchAndBound:
 
     def run(self):
         if self.initialGD:
-            initUpperBoundClass = PgdUpperBound(self.network, 10, 1000, 0.001,
+            pgdStartTime = time.time()
+            initUpperBoundClass = PgdUpperBound(self.network, 10 if self.initialBubPoint is None else 1, 100, 0.001,
                                                 self.inputDimension, self.device, self.maximumBatchSize)
 
+            pgdUpperBound = torch.Tensor(initUpperBoundClass.upperBoundPerIndexWithPgd(0, self.spaceNodes,
+                                                                                       self.queryCoefficient,
+                                                                                       self.initialBubPoint))
             if self.bestUpperBound:
+                # if pgdUpperBound < self.bestUpperBound:
+                if self.verbose:
+                    print("Improvement percentage of initial PGD over current Best Upper Bound: {}"
+                          .format((pgdUpperBound - self.bestUpperBound) / self.bestUpperBound * 100))
                 self.bestUpperBound =\
-                    torch.minimum(self.bestUpperBound,
-                                  torch.Tensor(initUpperBoundClass.upperBound([0], self.spaceNodes,
-                                                                              self.queryCoefficient)))
+                    torch.minimum(self.bestUpperBound, pgdUpperBound)
+            else:
+                self.bestUpperBound = pgdUpperBound
+
+            self.timeForInitialGd = time.time() - pgdStartTime
+            # print("Time used in PGD: {}".format(self.timeForInitialGd))
             if self.verboseEssential:
                 print(self.bestUpperBound)
         elif self.bestUpperBound is None:
