@@ -1,5 +1,5 @@
 {
-    "eps": 0.1,
+    "eps": 0.01,
     "verbose": 0,
     "verboseMultiHorizon": 1,
     "verboseEssential": 0,
@@ -17,7 +17,7 @@
     "pgdIterNum": 0,
     "pgdNumberOfInitializations": 1,
     "pgdStepSize": 0.5,
-    "finalHorizon": 5,
+    "finalHorizon": 6,
     "initialGD": false,
     "performMultiStepSingleHorizon": true,
     "plotProjectionsOfHigherDims": false,
@@ -46,13 +46,13 @@
         0.0
     ],
     "lowerCoordinate": [
-        2.5,
+        2.50000001,
         -0.25
     ],
     "upperCoordinate": [
-        3,
+        3.0,
         0.25
 
     ],
-    "pathToStateDictionary": "Networks/doubleIntegrator_reachlp.pth"
+    "pathToStateDictionary": "Networks/doubleIntegratorCorrect.pth"
 }

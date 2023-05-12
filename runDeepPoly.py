@@ -212,7 +212,7 @@ def main():
 
         if verboseMultiHorizon:
             # plt.figure()
-            plt.scatter(imageDataCpu[:, 0], imageDataCpu[:, 1], marker='.', label='Horizon ' + str(iteration + 1), alpha=0.5)
+            plt.scatter(imageDataCpu[:, 0], imageDataCpu[:, 1], marker='.', label='Horizon ' + str(iteration + 1), alpha=0.1 if "quad" in configFileToLoad else 0.5)
 
 
         plottingData[iteration + 1]["A"] = directions
@@ -246,20 +246,18 @@ def main():
             if "doubleIntegrator" in configFileToLoad:
                 reachlp = np.array([
                     # [[2.5, 3], [-0.25, 0.25]],
-                    [[1.90837383, 2.75],
-                     [-1.125, -0.70422709]],
-
-                    [[1.0081799, 1.8305043],
-                     [-1.10589671, -0.80364925]],
-
-                    [[0.33328745, 0.94537741],
-                     [-0.76938218, -0.41314635]],
-
-                    [[-0.06750171, 0.46302059],
-                     [-0.47266394, -0.07047667]],
-
-                    [[-0.32873616, 0.38155359],
-                     [-0.30535603, 0.09282264]]
+                    [[2.01483464,  3.00026107],
+                     [-0.72033036, - 0.24947783]],
+                [[1.24562085,  2.51569748],
+                   [-0.90323961, - 0.70318079]],
+                 [[0.5206694,   1.71032166],
+                   [-0.91515499 ,- 0.58238333]],
+                 [[0.02371979,  0.90817016],
+                   [-0.74536365, - 0.25939932]],
+                 [[-0.22359109,  0.3695122],
+                   [-0.46331555, - 0.02226254]],
+                    [[-0.33081353 , 0.2371438],
+                     [-0.23698969,  0.07140889]],
                 ])
                 plottingData["reachlp"] = reachlp
 
@@ -272,16 +270,19 @@ def main():
                 x = ax.add_patch(rectangle)
 
                 reachlp = np.array([
-                 [[1.90837407,  2.75],
-                   [-1.10949314, - 0.70422715]],
-                 [[1.03360844,  1.83050406],
-                   [-1.09321809, - 0.80526382]],
-                 [[0.4081341,   0.91338146],
-                   [-0.76728338, - 0.42616922]],
-                 [[0.10232732,  0.35712636],
-                   [-0.37809575, - 0.16485944]],
-                 [[-0.03504939,  0.12998357],
-                   [-0.1469591, - 0.03796272]]])
+                    [[2.01483464,  3.00026107],
+                     [-0.72033036, - 0.24947785]],
+                 [[1.2511518,   2.51569724],
+                   [-0.8942064, - 0.7160874]],
+                 [[0.54740649,  1.71032131],
+                   [-0.90281951, - 0.58645976]],
+                 [[0.09215631,  0.89872998],
+                   [-0.74371713, - 0.29617491]],
+                 [[-0.11571697,  0.3174535],
+                   [-0.45856571, - 0.08478171]],
+                    [[-0.17066495 , 0.0189018],
+                     [-0.187683,    0.01811443]]
+                ])
 
                 currHorizon = reachlp[i]
                 rectangle = patches.Rectangle((currHorizon[0][0], currHorizon[1][0]),
@@ -292,9 +293,9 @@ def main():
 
                 custom_lines = [Line2D([0], [0], color='b', lw=2),
                                 Line2D([0], [0], color='g', lw=2),
-                                Line2D([0], [0], color='red', lw=2, linestyle='--'),
-                                Line2D([0], [0], color='black', lw=2, linestyle='--')]
-                reachLipBnbPlottingData = torch.load("Output/reachLipdoubleIntegrator_reachlp.pth")
+                                Line2D([0], [0], color='black', lw=2, linestyle='--'),
+                                Line2D([0], [0], color='red', lw=2, linestyle='--'),]
+                reachLipBnbPlottingData = torch.load("Output/reachLipdoubleIntegrator.pth")
 
                 AA = -np.array(reachLipBnbPlottingData[iteration + 1]["A"])
                 AA = AA[:, :2]
@@ -307,7 +308,7 @@ def main():
                 ax = pltp.plot(ax, alpha=1, color='None', edgecolor='black')
 
                 leg1 = plt.legend()
-                ax.legend(custom_lines, ['ReachLP GSG', 'ReachLP Uniform', 'Our method', 'ReachLipBnB'], loc=4)
+                ax.legend(custom_lines, ['ReachLP GSG', 'ReachLP Uniform', 'ReachLipBnB', 'Our method'], loc=4)
                 plt.gca().add_artist(leg1)
 
             # ax.set_xlim([0, 5])
