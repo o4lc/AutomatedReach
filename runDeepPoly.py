@@ -172,7 +172,7 @@ def main():
     numberOfTotalDirections = 0
     for iteration in range(finalHorizon):
         # if iteration in [2, 4]:
-        if iteration in range(5) and "doubleIntegrator" in configFileToLoad:
+        if iteration in range(finalHorizon) and "doubleIntegrator" in configFileToLoad:
             fig, ax = plt.subplots()
         if iteration > 0:
             lowerCoordinates.append(lowerCoordinate.detach().clone())
@@ -240,7 +240,7 @@ def main():
 
             bb = np.array(bb)
             pltp = polytope.Polytope(AA, bb)
-            ax = pltp.plot(ax, alpha = 1, color='None', edgecolor='red')
+            ax = pltp.plot(ax, alpha = 1, color='None', edgecolor='red', linewidth=5)
 
 
             if "doubleIntegrator" in configFileToLoad:
@@ -431,11 +431,11 @@ def main():
 
 
             custom_lines = [Line2D([0], [0], color='b', lw=2),
-                            Line2D([0], [0], color='red', lw=2, linestyle='--'),
-                            Line2D([0], [0], color='black', lw=2, linestyle='--')]
+                            Line2D([0], [0], color='black', lw=2, linestyle='--'),
+                            Line2D([0], [0], color='red', lw=2, linestyle='--'),]
             plt.axis("equal")
             leg1 = plt.legend()
-            ax.legend(custom_lines, ['ReachLP', 'Our method', 'ReachLipBnB'], loc=4)
+            ax.legend(custom_lines, ['ReachLP', 'ReachLipBnB', 'Our method'], loc=4)
 
             plt.gca().add_artist(leg1)
 
